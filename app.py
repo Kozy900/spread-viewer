@@ -33,24 +33,23 @@ if st.button("グラフを表示"):
             df_raw_a = yf.download(code_a, period="1y")
             df_raw_b = yf.download(code_b, period="1y")
 
-            if "Close" in df_raw_a.columns and "Close" in df_raw_b.columns:
+            # データ取得成功か確認
+            if (
+                isinstance(df_raw_a, pd.DataFrame) and not df_raw_a.empty and "Close" in df_raw_a.columns and
+                isinstance(df_raw_b, pd.DataFrame) and not df_raw_b.empty and "Close" in df_raw_b.columns
+            ):
                 df_a = df_raw_a["Close"].dropna()
                 df_b = df_raw_b["Close"].dropna()
 
-                # 共通日付で揃える
-                df = pd.DataFrame({
-                    "企業A": df_a,
-                    "企業B": df_b
-                }).dropna()
+                # 日付を揃える
+                df = pd.concat([df_a, df_b], axis=1, join="inner")
+                df.columns = ["企業A", "企業B"]
 
-                if not df.empty:
-                    df["さや比"] = df["企業A"] / df["企業B"]
-                    df["75日移動平均"] = df["さや比"].rolling(window=75).mean()
+                df["さや比"] = df["企業A"] / df["企業B"]
+                df["75日移動平均"] = df["さや比"].rolling(window=75).mean()
 
-                    st.subheader(f"{ticker_dict[code_a]} vs {ticker_dict[code_b]} のさや比推移")
-                    st.line_chart(df[["さや比", "75日移動平均"]])
-                else:
-                    st.warning("両銘柄の株価が揃っていないため、グラフを表示できません。")
+                st.subheader(f"{ticker_dict[code_a]} vs {ticker_dict[code_b]} のさや比推移")
+                st.line_chart(df[["さや比", "75日移動平均"]])
             else:
                 st.error("株価データの取得に失敗しました。銘柄コードを確認してください。")
         except Exception as e:
