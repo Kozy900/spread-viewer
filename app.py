@@ -7,7 +7,7 @@ import matplotlib.pyplot as plt
 st.set_page_config(page_title="さや比ビューア", layout="wide")
 st.title("銘柄ペアのさや比グラフ")
 
-# 日経225構成銘柄一覧を取得
+# 日経225構成銘柄一覧を取得（キャッシュ付き）
 @st.cache_data
 def get_nikkei225_tickers():
     url = "https://indexes.nikkei.co.jp/nkave/index/component?idx=nk225"
@@ -20,26 +20,33 @@ def get_nikkei225_tickers():
 ticker_dict = get_nikkei225_tickers()
 ticker_list = list(ticker_dict.keys())
 
-# 銘柄選択（ドロップダウン）
+# 銘柄選択UI
 col1, col2 = st.columns(2)
 with col1:
     code_a = st.selectbox("企業Aを選択", ticker_list, format_func=lambda x: f"{x} - {ticker_dict[x]}")
 with col2:
     code_b = st.selectbox("企業Bを選択", ticker_list, format_func=lambda x: f"{x} - {ticker_dict[x]}")
 
-# データ取得とグラフ表示
-if code_a and code_b and code_a != code_b:
-    df_a = yf.download(code_a, period="1y")["Close"]
-    df_b = yf.download(code_b, period="1y")["Close"]
-    df = pd.DataFrame({
-        "企業A": df_a,
-        "企業B": df_b
-    }).dropna()
+# 実行ボタン
+if st.button("グラフを表示"):
+    if code_a != code_b:
+        df_raw_a = yf.download(code_a, period="1y")
+        df_raw_b = yf.download(code_b, period="1y")
 
-    df["さや比"] = df["企業A"] / df["企業B"]
-    df["75日移動平均"] = df["さや比"].rolling(window=75).mean()
+        if not df_raw_a.empty and not df_raw_b.empty:
+            df_a = df_raw_a["Close"]
+            df_b = df_raw_b["Close"]
+            df = pd.DataFrame({
+                "企業A": df_a,
+                "企業B": df_b
+            }).dropna()
 
-    st.subheader(f"{ticker_dict[code_a]} vs {ticker_dict[code_b]} のさや比推移")
-    st.line_chart(df[["さや比", "75日移動平均"]])
-else:
-    st.info("異なる2銘柄を選択してください。")
+            df["さや比"] = df["企業A"] / df["企業B"]
+            df["75日移動平均"] = df["さや比"].rolling(window=75).mean()
+
+            st.subheader(f"{ticker_dict[code_a]} vs {ticker_dict[code_b]} のさや比推移")
+            st.line_chart(df[["さや比", "75日移動平均"]])
+        else:
+            st.error("株価データの取得に失敗しました。銘柄コードを確認してください。")
+    else:
+        st.warning("異なる2銘柄を選択してください。")
